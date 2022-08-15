@@ -1,5 +1,7 @@
 import React from "react";
 
+import PersistentSocket from "./PersistentSocket";
+
 type TunerStatus =
   | { State: "Starting" | "Playing"; ChannelName: string }
   | { State: "Stopped"; Error: undefined | string };
@@ -28,7 +30,7 @@ export const TunerStatusProvider = ({
   });
 
   React.useEffect(() => {
-    const ws = new WebSocket(
+    const socket = new PersistentSocket(
       `ws://${window.location.host}/api/socket/tuner-status`,
     );
 
@@ -38,28 +40,28 @@ export const TunerStatusProvider = ({
         return;
       }
       closed = true;
-      ws.onmessage = null;
-      ws.onclose = null;
-      ws.onerror = null;
-      ws.close();
+      socket.removeAllListeners("message");
+      socket.removeAllListeners("close");
+      socket.removeAllListeners("error");
+      socket.close();
     };
 
-    ws.onmessage = (evt) => {
+    socket.on("message", (evt) => {
       const status: TunerStatus = JSON.parse(evt.data);
       console.log("Received tuner status", status);
       setStatus({ Connection: "Connected", ...status });
-    };
+    });
 
-    ws.onclose = () => {
+    socket.on("close", () => {
       console.log("Tuner status socket closed");
       setStatus({ Connection: "Disconnected" });
       close();
-    };
-    ws.onerror = (evt) => {
+    });
+    socket.on("error", (evt) => {
       console.error("Tuner status socket error", evt);
       setStatus({ Connection: "Disconnected" });
       close();
-    };
+    });
 
     return close;
   }, []);

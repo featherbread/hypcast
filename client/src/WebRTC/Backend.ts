@@ -1,5 +1,7 @@
 import { EventEmitter } from "events";
 
+import PersistentSocket from "../PersistentSocket";
+
 export type ConnectionState =
   | { Status: "Disconnected" | "Connecting" | "Connected" }
   | { Status: "Error"; Error: Error };
@@ -21,39 +23,25 @@ declare interface Backend {
 }
 
 class Backend extends EventEmitter {
-  private pc: RTCPeerConnection;
-  private ws: WebSocket;
+  private pc: RTCPeerConnection | undefined;
+  private socket: PersistentSocket;
 
   private _connectionState: ConnectionState = { Status: "Connecting" };
   private _mediaStream: undefined | MediaStream;
 
   constructor() {
     super();
-    this.pc = new RTCPeerConnection();
-    this.ws = new WebSocket(
+    this.socket = new PersistentSocket(
       `ws://${window.location.host}/api/socket/webrtc-peer`,
     );
     this.setup();
   }
 
   private setup() {
-    this.ws.addEventListener("message", (evt) => this.handleSocketMessage(evt));
-    this.ws.addEventListener("open", () => this.handleSocketOpen());
-    this.ws.addEventListener("close", () => this.handleSocketClose());
-    this.ws.addEventListener("error", (evt) => this.handleSocketError(evt));
-
-    this.pc.addEventListener("track", (evt) =>
-      this.handlePeerConnectionTrack(evt),
-    );
-    this.pc.addEventListener("connectionstatechange", (evt) =>
-      console.log("Connection state", this.pc.connectionState, evt),
-    );
-    this.pc.addEventListener("signalingstatechange", (evt) =>
-      console.log("Signaling state", this.pc.signalingState, evt),
-    );
-
-    this.pc.addTransceiver("video", { direction: "recvonly" });
-    this.pc.addTransceiver("audio", { direction: "recvonly" });
+    this.socket.on("message", (evt) => this.handleSocketMessage(evt));
+    this.socket.on("open", () => this.handleSocketOpen());
+    this.socket.on("close", () => this.handleSocketClose());
+    this.socket.on("error", (evt) => this.handleSocketError(evt));
   }
 
   get connectionState() {
@@ -61,8 +49,30 @@ class Backend extends EventEmitter {
   }
 
   close() {
-    this.pc.close();
-    this.ws.close();
+    this.socket.close();
+    if (this.pc) {
+      this.pc.close();
+    }
+  }
+
+  private handleSocketOpen() {
+    this._connectionState = { Status: "Connected" };
+    this.emit("connectionchange", this._connectionState);
+
+    this.pc = new RTCPeerConnection();
+
+    this.pc.addEventListener("track", (evt) =>
+      this.handlePeerConnectionTrack(evt),
+    );
+    this.pc.addEventListener("connectionstatechange", (evt) =>
+      console.log("Connection state", this.pc?.connectionState, evt),
+    );
+    this.pc.addEventListener("signalingstatechange", (evt) =>
+      console.log("Signaling state", this.pc?.signalingState, evt),
+    );
+
+    this.pc.addTransceiver("video", { direction: "recvonly" });
+    this.pc.addTransceiver("audio", { direction: "recvonly" });
   }
 
   private handleSocketMessage(evt: MessageEvent) {
@@ -73,18 +83,13 @@ class Backend extends EventEmitter {
 
   private async handleRTCOffer(sdp: any) {
     console.log("Received remote description", sdp);
-    this.pc.setRemoteDescription(sdp);
+    this.pc?.setRemoteDescription(sdp);
 
-    const answer = await this.pc.createAnswer();
+    const answer = await this.pc?.createAnswer();
     console.log("Created local description", answer);
-    await this.pc.setLocalDescription(answer);
+    await this.pc?.setLocalDescription(answer);
 
-    this.ws.send(JSON.stringify({ SDP: answer }));
-  }
-
-  private handleSocketOpen() {
-    this._connectionState = { Status: "Connected" };
-    this.emit("connectionchange", this._connectionState);
+    this.socket.send(JSON.stringify({ SDP: answer }));
   }
 
   private handleSocketClose() {
