@@ -376,38 +376,6 @@ func assertWatchTerminates(t *testing.T, w Watch) {
 	}
 }
 
-// assertBlockedAfter fails a test if it receives a value from ch after calling
-// settle().
-//
-// The settle function should ensure that any goroutines that might incorrectly
-// send into ch have progressed far enough to do so, ideally to the point that
-// they have exited or are durably blocked on another condition.
-// [forceRuntimeProgress] makes a best-effort attempt to ensure this in stable
-// versions of Go as of writing. Future versions of Go may provide a mechanism
-// to robustly guarantee this, like the experimental "testing/synctest" package.
-func assertBlockedAfter[T any](settle func(), t *testing.T, ch <-chan T) {
-	t.Helper()
-
-	settle()
-	select {
-	case <-ch:
-		t.Fatal("channel was not blocked")
-	default:
-	}
-}
-
-// forceRuntimeProgress makes a best-effort attempt to force the Go runtime to
-// make progress on all other goroutines in the system, ideally to the point at
-// which they will next block if not preempted. It works best if no other
-// goroutines are CPU-intensive or change GOMAXPROCS.
-func forceRuntimeProgress() {
-	gomaxprocs := runtime.GOMAXPROCS(1)
-	defer runtime.GOMAXPROCS(gomaxprocs)
-	for range runtime.NumGoroutine() {
-		runtime.Gosched()
-	}
-}
-
 func BenchmarkSet1Watcher(b *testing.B) {
 	benchmarkSetWithWatchers(b, 1)
 }
