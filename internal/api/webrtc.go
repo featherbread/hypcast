@@ -86,11 +86,7 @@ func (wh *WebRTCHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer wh.rtcPeer.Close()
 
-	wh.waitGroup.Add(1)
-	go func() {
-		defer wh.waitGroup.Done()
-		wh.handleClientSessionAnswers()
-	}()
+	wh.waitGroup.Go(wh.handleClientSessionAnswers)
 
 	wh.watch = wh.tuner.WatchTracks(wh.handleTrackUpdate)
 	defer wh.watch.Cancel()

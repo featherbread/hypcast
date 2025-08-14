@@ -48,11 +48,7 @@ func (tsh *TunerStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 	defer tsh.socket.Close()
 
-	tsh.waitGroup.Add(1)
-	go func() {
-		defer tsh.waitGroup.Done()
-		tsh.drainClient()
-	}()
+	tsh.waitGroup.Go(tsh.drainClient)
 
 	tsh.watch = tsh.tuner.WatchStatus(tsh.sendNewTunerStatus)
 	defer tsh.watch.Cancel()

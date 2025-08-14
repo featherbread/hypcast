@@ -13,6 +13,7 @@
 // This framework is not considered acceptable for Internet-facing production
 // use. For example, the Content-Type enforcement described above is the only
 // mitigation against cross-site request forgery attacks.
+// (TODO: Consider adopting http.CrossOriginProtection from Go 1.25.)
 package rpc
 
 import (

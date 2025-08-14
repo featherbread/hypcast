@@ -48,11 +48,10 @@ func TestValueStress(t *testing.T) {
 	}
 
 	var setGroup sync.WaitGroup
-	setGroup.Add(nWrites - 1)
 	for i := 1; i <= nWrites-1; i++ {
 		// This will quickly make the race detector complain if Set is not properly
 		// synchronized.
-		go func() { defer setGroup.Done(); v.Set(i) }()
+		setGroup.Go(func() { v.Set(i) })
 	}
 	setGroup.Wait()
 
