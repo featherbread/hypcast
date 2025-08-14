@@ -5,7 +5,10 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const timeout = 2 * time.Second
@@ -201,36 +204,43 @@ func TestGoexitFromHandler(t *testing.T) {
 
 func TestCancelInactiveHandler(t *testing.T) {
 	// The usual case of canceling a watch, where no handler is active at the time
-	// of cancellation. Once we cancel, no further handler calls should be made.
+	// of cancellation.
+	synctest.Test(t, func(t *testing.T) {
+		notify := make(chan string)
+		v := NewValue("alice")
+		w := v.Watch(func(x string) { notify <- x })
 
-	v := NewValue("alice")
-	notify := make(chan string, 1)
-	w := v.Watch(func(x string) {
+		// Deal with the initial notification. Then, wait for the handler goroutine
+		// to exit before canceling the watch.
+		assert.Equal(t, "alice", <-notify)
+		synctest.Wait()
+		w.Cancel()
+
+		// Set another value, and ensure that we're not notified even after
+		// background goroutines have settled.
+		v.Set("bob")
+		synctest.Wait()
 		select {
-		case notify <- x:
+		case <-notify:
+			t.Error("watcher notified after being canceled")
 		default:
 		}
 	})
-
-	assertNextReceive(t, notify, "alice")
-	forceRuntimeProgress() // Try to ensure the handler has fully terminated.
-
-	w.Cancel()
-	v.Set("bob")
-	assertBlockedAfter(forceRuntimeProgress, t, notify)
 }
 
 func TestDoubleCancelInactiveHandler(t *testing.T) {
-	// A specific test for calling Cancel twice on an inactive handler, and
-	// ensuring we don't panic.
+	// A specific test for calling Cancel twice on an inactive handler.
+	synctest.Test(t, func(t *testing.T) {
+		v := NewValue("alice")
+		w := v.Watch(func(x string) {})
 
-	v := NewValue("alice")
-	w := v.Watch(func(x string) {})
-	forceRuntimeProgress() // Try to ensure the initial handler has fully terminated.
-
-	w.Cancel()
-	w.Cancel()
-	assertWatchTerminates(t, w)
+		// Wait for the initial handler to exit, then cancel the watch twice.
+		// The goal is simply to not panic.
+		synctest.Wait()
+		w.Cancel()
+		w.Cancel()
+		w.Wait()
+	})
 }
 
 func TestCancelBlockedWatcher(t *testing.T) {
@@ -299,29 +309,37 @@ func TestDoubleCancelFromHandler(t *testing.T) {
 func TestWait(t *testing.T) {
 	// A specific test to ensure that Wait properly blocks until the watch has
 	// terminated.
+	synctest.Test(t, func(t *testing.T) {
+		notify := make(chan string)
+		v := NewValue("alice")
+		w := v.Watch(func(x string) { notify <- x })
 
-	v := NewValue("alice")
+		// Ensure that we have a handler in flight from the initial notification.
+		synctest.Wait()
 
-	block, notify := make(chan struct{}), make(chan string)
-	w := v.Watch(func(x string) {
-		<-block
-		notify <- x
+		// Start waiting in the background. We should remain blocked.
+		done := make(chan struct{})
+		go func() { defer close(done); w.Wait() }()
+		synctest.Wait()
+		select {
+		case <-done:
+			t.Fatal("watcher finished waiting before cancellation")
+		default:
+		}
+
+		// Cancel the watch, and ensure that Wait is still blocked.
+		w.Cancel()
+		synctest.Wait()
+		select {
+		case <-done:
+			t.Fatal("watcher finished waiting before handler exit")
+		default:
+		}
+
+		// Allow the handler to finish. At this point, we should become unblocked.
+		assert.Equal(t, "alice", <-notify)
+		<-done
 	})
-
-	// Ensure that we have a handler in flight.
-	block <- struct{}{}
-
-	// Start waiting in the background. We should remain blocked.
-	done := makeWaitChannel(w)
-	assertBlockedAfter(forceRuntimeProgress, t, done)
-
-	// Cancel the watch, and ensure that we are still blocked.
-	w.Cancel()
-	assertBlockedAfter(forceRuntimeProgress, t, done)
-
-	// Allow the handler to finish. At this point, we should become unblocked.
-	assertNextReceive(t, notify, "alice")
-	assertWatchTerminates(t, w)
 }
 
 // makeWaitChannel returns a channel that will be closed after w.Wait returns.
