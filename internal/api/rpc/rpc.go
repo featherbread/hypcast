@@ -57,9 +57,8 @@ func NewHandler[T any](handle HandlerFunc[T]) Handler[T] {
 
 // ServeHTTP implements http.Handler for an RPC handler function.
 func (h Handler[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.Header().Add("Allow", http.MethodPost)
-		w.WriteHeader(http.StatusMethodNotAllowed)
+	blocked := respondIfBadMethod(w, r)
+	if blocked {
 		return
 	}
 
@@ -84,6 +83,15 @@ func (h Handler[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	code, body := h.Handle(r, params)
 	respond(w, code, body)
+}
+
+func respondIfBadMethod(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method != http.MethodPost {
+		w.Header().Add("Allow", http.MethodPost)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return true
+	}
+	return false
 }
 
 func respond(w http.ResponseWriter, code int, body any) {
