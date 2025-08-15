@@ -77,27 +77,30 @@ func (h Handler[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			err = errInvalidBody
 		}
 	}
-
-	var code int
-	var body any
-	if err == nil {
-		code, body = h.Handle(r, params)
-	} else {
-		code, body = errorHTTPCode(err), err
+	if err != nil {
+		respondError(w, err)
+		return
 	}
 
+	code, body := h.Handle(r, params)
+	respond(w, code, body)
+}
+
+func respond(w http.ResponseWriter, code int, body any) {
 	if berr, ok := body.(error); ok {
 		body = struct{ Error string }{berr.Error()}
 	}
-
 	if body == nil {
 		w.WriteHeader(code)
 		return
 	}
-
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(body)
+}
+
+func respondError(w http.ResponseWriter, err error) {
+	respond(w, errorHTTPCode(err), err)
 }
 
 type httpError struct {
