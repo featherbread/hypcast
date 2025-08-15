@@ -24,11 +24,8 @@ import (
 	"net/http"
 )
 
-// MaxRequestBodySize is the maximum size of the HTTP body in an RPC request.
-// Requests whose body exceeds this size will fail without being handled.
-//
-// TODO: This should not be global.
-var MaxRequestBodySize int64 = 1024
+// DefaultMaxRequestBodySize is the default MaxRequestBodySize set by [NewHandler].
+const DefaultMaxRequestBodySize int64 = 1024
 
 // HandlerFunc is a type for functions that handle RPC calls initiated by HTTP
 // clients, accepting parameters decoded from JSON and returning an HTTP status
@@ -42,12 +39,25 @@ var MaxRequestBodySize int64 = 1024
 // following standard json.Marshal rules.
 type HandlerFunc[T any] func(r *http.Request, params T) (code int, body any)
 
-// HTTPHandler conveniently boxes an RPC handler function into an http.Handler,
-// without requiring an explicit type argument for a HandlerFunc[T] conversion.
-func HTTPHandler[T any](handler HandlerFunc[T]) http.Handler { return handler }
+type Handler[T any] struct {
+	// Handle serves RPC requests.
+	Handle HandlerFunc[T]
+
+	// MaxRequestBodySize is the maximum size of the HTTP body in an RPC request.
+	// Requests whose body exceeds this size will fail without being handled.
+	MaxRequestBodySize int64
+}
+
+// NewHandler wraps an RPC handler function with default settings.
+func NewHandler[T any](handle HandlerFunc[T]) Handler[T] {
+	return Handler[T]{
+		Handle:             handle,
+		MaxRequestBodySize: DefaultMaxRequestBodySize,
+	}
+}
 
 // ServeHTTP implements http.Handler for an RPC handler function.
-func (handler HandlerFunc[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h Handler[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Add("Allow", http.MethodPost)
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -56,8 +66,8 @@ func (handler HandlerFunc[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 
 	var code int
 	var body any
-	if params, err := readRPCParams[T](r); err == nil {
-		code, body = handler(r, params)
+	if params, err := readRPCParams[T](r, h.MaxRequestBodySize); err == nil {
+		code, body = h.Handle(r, params)
 	} else {
 		code, body = errorHTTPCode(err), err
 	}
@@ -90,15 +100,15 @@ var (
 	errInvalidBody     = httpError{http.StatusBadRequest, "unable to decode RPC body"}
 )
 
-func readRPCParams[T any](r *http.Request) (T, error) {
+func readRPCParams[T any](r *http.Request, sizeLimit int64) (T, error) {
 	var body bytes.Buffer
-	n, err := body.ReadFrom(io.LimitReader(r.Body, MaxRequestBodySize+1))
+	n, err := body.ReadFrom(io.LimitReader(r.Body, sizeLimit+1))
 	switch {
 	case err != nil:
 		return *new(T), errReadingBody
 	case n == 0:
 		return *new(T), nil
-	case n > MaxRequestBodySize:
+	case n > sizeLimit:
 		return *new(T), errBodyTooLarge
 	}
 
