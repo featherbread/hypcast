@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 )
 
@@ -64,9 +63,24 @@ func (h Handler[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var params T
+	var rbody bytes.Buffer
+	n, err := rbody.ReadFrom(http.MaxBytesReader(w, r.Body, h.MaxRequestBodySize))
+	if n > 0 {
+		if _, ok := err.(*http.MaxBytesError); ok {
+			err = errBodyTooLarge
+		} else if err != nil {
+			err = errReadingBody
+		} else if r.Header.Get("Content-Type") != "application/json" {
+			err = errInvalidBodyType
+		} else if jerr := json.Unmarshal(rbody.Bytes(), &params); jerr != nil {
+			err = errInvalidBody
+		}
+	}
+
 	var code int
 	var body any
-	if params, err := readRPCParams[T](r, h.MaxRequestBodySize); err == nil {
+	if err == nil {
 		code, body = h.Handle(r, params)
 	} else {
 		code, body = errorHTTPCode(err), err
@@ -99,29 +113,6 @@ var (
 	errInvalidBodyType = httpError{http.StatusUnsupportedMediaType, "must have Content-Type: application/json"}
 	errInvalidBody     = httpError{http.StatusBadRequest, "unable to decode RPC body"}
 )
-
-func readRPCParams[T any](r *http.Request, sizeLimit int64) (T, error) {
-	var body bytes.Buffer
-	n, err := body.ReadFrom(io.LimitReader(r.Body, sizeLimit+1))
-	switch {
-	case err != nil:
-		return *new(T), errReadingBody
-	case n == 0:
-		return *new(T), nil
-	case n > sizeLimit:
-		return *new(T), errBodyTooLarge
-	}
-
-	if r.Header.Get("Content-Type") != "application/json" {
-		return *new(T), errInvalidBodyType
-	}
-
-	var params T
-	if err := json.Unmarshal(body.Bytes(), &params); err != nil {
-		return *new(T), errInvalidBody
-	}
-	return params, err
-}
 
 func errorHTTPCode(err error) int {
 	var herr httpError
