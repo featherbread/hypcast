@@ -5,15 +5,14 @@
 // request body. RPC responses include an appropriate HTTP status code, and may
 // include a response body containing a single JSON-encoded value.
 //
-// No HTTP method other than POST is accepted for RPC requests, even those that
-// do not require parameters. The maximum size of RPC request bodies may be
-// limited to conserve server resources. Requests with parameters must include a
-// Content-Type header with the value "application/json".
+// POST is the only allowed HTTP method for RPC requests, both with and without
+// parameters. Requests with parameters must include a Content-Type header with
+// the value "application/json". Specific RPC requests may limit the size of
+// allowed request bodies to conserve server resources.
 //
-// This framework is not considered acceptable for Internet-facing production
-// use. For example, the Content-Type enforcement described above is the only
-// mitigation against cross-site request forgery attacks.
-// (TODO: Consider adopting http.CrossOriginProtection from Go 1.25.)
+// This framework is incomplete for Internet-facing production use.
+// For example, RPC handlers should not be exposed to web browsers without
+// stronger cross-site request forgery enforcement.
 package rpc
 
 import (
@@ -106,6 +105,8 @@ func WithLimitedBodyBuffer(limit int64, handle http.Handler) http.Handler {
 	})
 }
 
+// bufferedBody acts as a sentinel for [Handle] that a request body is already
+// buffered, and implements [io.ReadCloser] so [http.Request] can carry it.
 type bufferedBody struct{ bytes.Buffer }
 
 func (bufferedBody) Close() error { return nil }
