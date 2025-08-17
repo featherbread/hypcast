@@ -91,7 +91,6 @@ func WithLimitedBodyBuffer(limit int64, handle http.Handler) http.Handler {
 
 		var rbody bytes.Buffer
 		_, err := rbody.ReadFrom(http.MaxBytesReader(w, r.Body, limit))
-		r.Body.Close()
 		if err != nil {
 			switch err.(type) {
 			case *http.MaxBytesError:
