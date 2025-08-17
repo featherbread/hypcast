@@ -12,7 +12,7 @@
 //
 // This framework is incomplete for Internet-facing production use.
 // For example, RPC handlers should not be exposed to web browsers without
-// stronger cross-site request forgery enforcement.
+// stronger protections against cross-site request forgery.
 package rpc
 
 import (
