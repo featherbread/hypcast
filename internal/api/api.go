@@ -14,9 +14,17 @@ import (
 	"github.com/featherbread/hypcast/internal/atsc/tuner"
 )
 
+var csrf = http.NewCrossOriginProtection()
+
 var websocketUpgrader = &websocket.Upgrader{
-	// TODO: Improve this function for better security
-	CheckOrigin: func(_ *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		// [http.CrossOriginProtection] considers the GET requests used to start
+		// WebSocket connections to be safe, even though the final connection might
+		// not be "safe" in the HTTP sense.
+		r = r.Clone(r.Context())
+		r.Method = http.MethodPost
+		return csrf.Check(r) == nil
+	},
 }
 
 // Handler serves the Hypcast API for a single tuner.
@@ -36,7 +44,10 @@ func NewHandler(tuner *tuner.Tuner) *Handler {
 
 	// The RPC framework is expected to enforce its own method checks.
 	rpcMux := http.NewServeMux()
-	h.mux.Handle("/api/rpc/", rpc.WithLimitedBodyBuffer(1024, rpcMux))
+	h.mux.Handle("/api/rpc/",
+		csrf.Handler(
+			rpc.WithLimitedBodyBuffer(1024,
+				rpcMux)))
 	rpcMux.Handle("/api/rpc/stop", rpc.Handle(h.rpcStop))
 	rpcMux.Handle("/api/rpc/tune", rpc.Handle(h.rpcTune))
 
@@ -73,7 +84,7 @@ func (h *Handler) rpcTune(r *http.Request, params struct{ ChannelName string }) 
 	err := h.tuner.Tune(params.ChannelName)
 	switch {
 	case errors.Is(err, tuner.ErrChannelNotFound):
-		return http.StatusBadRequest, err
+		return http.StatusBadRequest, err // Not 404; avoid confusion with nonexistent RPC route.
 	case err != nil:
 		return http.StatusInternalServerError, err
 	}
