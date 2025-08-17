@@ -26,8 +26,11 @@ import (
 // Handle wraps an RPC handler into an [http.Handler] that follows the RPC
 // framework conventions noted in the package documentation.
 //
-// When the client provides a JSON parameters value in the request body, the
-// RPC framework decodes it following standard [json.Unmarshal] rules.
+// When the client provides a JSON parameters value in the request body,
+// the RPC framework decodes it following standard [json.Unmarshal] rules.
+// It buffers the request body in memory before decoding, which may not be
+// memory-efficent for some use cases. [WithLimitedBodyBuffer] may wrap one or
+// more RPC handlers to limit the sizes of allowed request bodies.
 //
 // When the RPC handler returns a Go error as the response body, the framework
 // encodes it as a JSON object with an "Error" key containing the error
