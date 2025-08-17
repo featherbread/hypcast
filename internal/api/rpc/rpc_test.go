@@ -20,7 +20,7 @@ func Example() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/rpc/setstatus",
-		rpc.NewHandler(func(_ *http.Request, params struct{ Enabled *bool }) (code int, body any) {
+		rpc.Handle(func(_ *http.Request, params struct{ Enabled *bool }) (code int, body any) {
 			if params.Enabled == nil {
 				return http.StatusBadRequest, errors.New(`missing "Enabled" parameter`)
 			}
@@ -40,7 +40,7 @@ func Example() {
 }
 
 func TestRPC(t *testing.T) {
-	const testMaxRequestBodySize = 32
+	const rpcTestBodySizeLimit = 32
 	handler := func(_ *http.Request, _ struct{}) (code int, body any) {
 		return http.StatusNoContent, nil
 	}
@@ -104,8 +104,7 @@ func TestRPC(t *testing.T) {
 			req.Header = tc.Headers
 
 			resp := httptest.NewRecorder()
-			var rh http.Handler = rpc.NewHandler(handler)
-			rh = rpc.WithLimitedBodyBuffer(testMaxRequestBodySize, rh)
+			rh := rpc.WithLimitedBodyBuffer(rpcTestBodySizeLimit, rpc.Handle(handler))
 			rh.ServeHTTP(resp, req)
 
 			if resp.Result().StatusCode != tc.WantCode {
