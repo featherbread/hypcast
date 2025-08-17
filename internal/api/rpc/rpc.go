@@ -23,9 +23,6 @@ import (
 	"net/http"
 )
 
-// DefaultMaxRequestBodySize is the default MaxRequestBodySize set by [NewHandler].
-const DefaultMaxRequestBodySize int64 = 1024
-
 // HandlerFunc is a type for functions that handle RPC calls initiated by HTTP
 // clients, accepting parameters decoded from JSON and returning an HTTP status
 // code and optional JSON-encodable result body.
@@ -41,18 +38,11 @@ type HandlerFunc[T any] func(r *http.Request, params T) (code int, body any)
 type Handler[T any] struct {
 	// Handle serves RPC requests.
 	Handle HandlerFunc[T]
-
-	// MaxRequestBodySize is the maximum size of the HTTP body in an RPC request.
-	// Requests whose body exceeds this size will fail without being handled.
-	MaxRequestBodySize int64
 }
 
 // NewHandler wraps an RPC handler function with default settings.
 func NewHandler[T any](handle HandlerFunc[T]) Handler[T] {
-	return Handler[T]{
-		Handle:             handle,
-		MaxRequestBodySize: DefaultMaxRequestBodySize,
-	}
+	return Handler[T]{Handle: handle}
 }
 
 // ServeHTTP implements http.Handler for an RPC handler function.
@@ -62,18 +52,27 @@ func (h Handler[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var params T
 	var rbody bytes.Buffer
-	n, err := rbody.ReadFrom(http.MaxBytesReader(w, r.Body, h.MaxRequestBodySize))
-	if n > 0 {
-		if _, ok := err.(*http.MaxBytesError); ok {
-			err = errBodyTooLarge
-		} else if err != nil {
+	var err error
+	switch b := r.Body.(type) {
+	case *bufferedBody:
+		rbody = b.Buffer
+	default:
+		_, err = rbody.ReadFrom(r.Body)
+		if err != nil {
 			err = errReadingBody
-		} else if r.Header.Get("Content-Type") != "application/json" {
+		}
+	}
+
+	var params T
+	if rbody.Len() > 0 {
+		if r.Header.Get("Content-Type") != "application/json" {
 			err = errInvalidBodyType
-		} else if jerr := json.Unmarshal(rbody.Bytes(), &params); jerr != nil {
-			err = errInvalidBody
+		} else {
+			err = json.Unmarshal(rbody.Bytes(), &params)
+			if err != nil {
+				err = errInvalidBody
+			}
 		}
 	}
 	if err != nil {
@@ -84,6 +83,44 @@ func (h Handler[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	code, body := h.Handle(r, params)
 	respond(w, code, body)
 }
+
+// WithLimitedBodyBuffer limits the size of request bodies passed to the
+// wrapped [http.Handler], rejecting large requests with an HTTP 413 response
+// and JSON error body following the conventions of the RPC framework.
+// It does this by buffering the request body in memory up to the limit,
+// which may not be memory-efficient for some use cases.
+//
+// WithLimitedBodyBuffer is designed for use with RPC framework handlers,
+// and may impose additional requirements (e.g. allowed HTTP methods)
+// as noted in the package documentation.
+func WithLimitedBodyBuffer(limit int64, handle http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		blocked := respondIfBadMethod(w, r)
+		if blocked {
+			return
+		}
+
+		var rbody bytes.Buffer
+		_, err := rbody.ReadFrom(http.MaxBytesReader(w, r.Body, limit))
+		r.Body.Close()
+		if err != nil {
+			switch err.(type) {
+			case *http.MaxBytesError:
+				respondError(w, errBodyTooLarge)
+			default:
+				respondError(w, errReadingBody)
+			}
+			return
+		}
+
+		r.Body = &bufferedBody{rbody}
+		handle.ServeHTTP(w, r)
+	})
+}
+
+type bufferedBody struct{ bytes.Buffer }
+
+func (bufferedBody) Close() error { return nil }
 
 func respondIfBadMethod(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method != http.MethodPost {

@@ -35,8 +35,10 @@ func NewHandler(tuner *tuner.Tuner) *Handler {
 	h.mux.HandleFunc("GET /api/config/channels", h.handleConfigChannels)
 
 	// The RPC framework is expected to enforce its own method checks.
-	h.mux.Handle("/api/rpc/stop", rpc.NewHandler(h.rpcStop))
-	h.mux.Handle("/api/rpc/tune", rpc.NewHandler(h.rpcTune))
+	rpcMux := http.NewServeMux()
+	h.mux.Handle("/api/rpc/", rpc.WithLimitedBodyBuffer(1024, rpcMux))
+	rpcMux.Handle("/api/rpc/stop", rpc.NewHandler(h.rpcStop))
+	rpcMux.Handle("/api/rpc/tune", rpc.NewHandler(h.rpcTune))
 
 	// The websocket library is expected to enforce its own method checks.
 	h.mux.HandleFunc("/api/socket/webrtc-peer", h.handleSocketWebRTCPeer)

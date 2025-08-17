@@ -104,8 +104,8 @@ func TestRPC(t *testing.T) {
 			req.Header = tc.Headers
 
 			resp := httptest.NewRecorder()
-			rh := rpc.NewHandler(handler)
-			rh.MaxRequestBodySize = testMaxRequestBodySize
+			var rh http.Handler = rpc.NewHandler(handler)
+			rh = rpc.WithLimitedBodyBuffer(testMaxRequestBodySize, rh)
 			rh.ServeHTTP(resp, req)
 
 			if resp.Result().StatusCode != tc.WantCode {
