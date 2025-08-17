@@ -44,31 +44,28 @@ func Handle[T any](h func(r *http.Request, params T) (code int, body any)) http.
 		}
 
 		var rbody bytes.Buffer
-		var err error
 		switch b := r.Body.(type) {
 		case *bufferedBody:
 			rbody = b.Buffer
 		default:
-			_, err = rbody.ReadFrom(r.Body)
+			_, err := rbody.ReadFrom(r.Body)
 			if err != nil {
-				err = errReadingBody
+				respondError(w, errReadingBody)
+				return
 			}
 		}
 
 		var params T
 		if rbody.Len() > 0 {
 			if r.Header.Get("Content-Type") != "application/json" {
-				err = errInvalidBodyType
-			} else {
-				err = json.Unmarshal(rbody.Bytes(), &params)
-				if err != nil {
-					err = errInvalidBody
-				}
+				respondError(w, errInvalidBodyType)
+				return
 			}
-		}
-		if err != nil {
-			respondError(w, err)
-			return
+			err := json.Unmarshal(rbody.Bytes(), &params)
+			if err != nil {
+				respondError(w, errInvalidBody)
+				return
+			}
 		}
 
 		code, body := h(r, params)
