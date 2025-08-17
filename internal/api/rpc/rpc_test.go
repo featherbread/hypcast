@@ -28,13 +28,18 @@ func Example() {
 			return http.StatusNoContent, nil
 		}))
 
+	csrf := http.NewCrossOriginProtection()
+	handler := csrf.Handler(
+		rpc.WithLimitedBodyBuffer(1024,
+			mux))
+
 	req := httptest.NewRequest(
-		http.MethodPost, "/rpc/setstatus", strings.NewReader(`{"Enabled": true}`),
-	)
+		http.MethodPost, "/rpc/setstatus", strings.NewReader(`{"Enabled": true}`))
+
 	req.Header.Add("Content-Type", "application/json")
 
 	resp := httptest.NewRecorder()
-	mux.ServeHTTP(resp, req)
+	handler.ServeHTTP(resp, req)
 	fmt.Println(resp.Result().StatusCode)
 	// Output: 204
 }
