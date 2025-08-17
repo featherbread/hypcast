@@ -108,8 +108,10 @@ func TestRPC(t *testing.T) {
 			req := httptest.NewRequest(method, "/", strings.NewReader(tc.Body))
 			req.Header = tc.Headers
 
-			resp := httptest.NewRecorder()
+			// TODO: Separate tests for RPC handler wrapping and body size limits.
 			rh := rpc.WithLimitedBodyBuffer(rpcTestBodySizeLimit, rpc.Handle(handler))
+
+			resp := httptest.NewRecorder()
 			rh.ServeHTTP(resp, req)
 
 			if resp.Result().StatusCode != tc.WantCode {
