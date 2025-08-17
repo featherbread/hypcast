@@ -5,75 +5,136 @@
 // request body. RPC responses include an appropriate HTTP status code, and may
 // include a response body containing a single JSON-encoded value.
 //
-// No HTTP method other than POST is accepted for RPC requests, even those that
-// do not require parameters. The maximum size of RPC request bodies may be
-// limited to conserve server resources. Requests with parameters must include a
-// Content-Type header with the value "application/json".
+// POST is the only allowed HTTP method for RPC requests, both with and without
+// parameters. Requests with parameters must include a Content-Type header with
+// the value "application/json". Specific RPC requests may limit the size of
+// allowed request bodies to conserve server resources.
 //
-// This framework is not considered acceptable for Internet-facing production
-// use. For example, the Content-Type enforcement described above is the only
-// mitigation against cross-site request forgery attacks.
-// (TODO: Consider adopting http.CrossOriginProtection from Go 1.25.)
+// This framework is incomplete for Internet-facing production use.
+// For example, RPC handlers should not be exposed to web browsers without
+// stronger protections against cross-site request forgery.
 package rpc
 
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 )
 
-// MaxRequestBodySize is the maximum size of the HTTP body in an RPC request.
-// Requests whose body exceeds this size will fail without being handled.
+// Handle wraps an RPC handler into an [http.Handler] that follows the RPC
+// framework conventions noted in the package documentation.
 //
-// TODO: This should not be global.
-var MaxRequestBodySize int64 = 1024
-
-// HandlerFunc is a type for functions that handle RPC calls initiated by HTTP
-// clients, accepting parameters decoded from JSON and returning an HTTP status
-// code and optional JSON-encodable result body.
+// When the client provides a JSON parameters value in the request body,
+// the RPC framework decodes it following standard [json.Unmarshal] rules.
+// It buffers the request body in memory before decoding, which may not be
+// memory-efficent for some use cases. [WithLimitedBodyBuffer] may wrap one or
+// more RPC handlers to limit the sizes of allowed request bodies.
 //
-// When the client provides a JSON parameters value in the request body, the RPC
-// framework decodes it using standard json.Unmarshal rules. When the body
-// returned by the handler is a Go error, the framework encodes it as a JSON
-// object with an "Error" key containing the stringified error message.
-// Otherwise, when the body is non-nil, the framework encodes it to JSON
-// following standard json.Marshal rules.
-type HandlerFunc[T any] func(r *http.Request, params T) (code int, body any)
+// When the RPC handler returns a Go error as the response body, the framework
+// encodes it as a JSON object with an "Error" key containing the error
+// message. Otherwise, when the body is non-nil, the framework encodes it to
+// JSON following standard [json.Marshal] rules.
+func Handle[T any](h func(r *http.Request, params T) (code int, body any)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		blocked := respondIfBadMethod(w, r)
+		if blocked {
+			return
+		}
 
-// HTTPHandler conveniently boxes an RPC handler function into an http.Handler,
-// without requiring an explicit type argument for a HandlerFunc[T] conversion.
-func HTTPHandler[T any](handler HandlerFunc[T]) http.Handler { return handler }
+		var rbody bytes.Buffer
+		switch b := r.Body.(type) {
+		case *bufferedBody:
+			rbody = b.Buffer
+		default:
+			_, err := rbody.ReadFrom(r.Body)
+			if err != nil {
+				respondError(w, errReadingBody)
+				return
+			}
+		}
 
-// ServeHTTP implements http.Handler for an RPC handler function.
-func (handler HandlerFunc[T]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+		var params T
+		if rbody.Len() > 0 {
+			if r.Header.Get("Content-Type") != "application/json" {
+				respondError(w, errInvalidBodyType)
+				return
+			}
+			err := json.Unmarshal(rbody.Bytes(), &params)
+			if err != nil {
+				respondError(w, errInvalidBody)
+				return
+			}
+		}
+
+		code, body := h(r, params)
+		respond(w, code, body)
+	})
+}
+
+// WithLimitedBodyBuffer limits the size of request bodies passed to the
+// wrapped [http.Handler], rejecting large requests with an HTTP 413 response
+// and JSON error body following the conventions of the RPC framework.
+// It does this by buffering the request body in memory up to the limit,
+// which may not be memory-efficient for some use cases.
+//
+// WithLimitedBodyBuffer is designed for use with RPC framework handlers,
+// and may impose additional requirements (e.g. allowed HTTP methods)
+// as noted in the package documentation.
+func WithLimitedBodyBuffer(limit int64, handle http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		blocked := respondIfBadMethod(w, r)
+		if blocked {
+			return
+		}
+
+		var rbody bytes.Buffer
+		_, err := rbody.ReadFrom(http.MaxBytesReader(w, r.Body, limit))
+		if err != nil {
+			switch err.(type) {
+			case *http.MaxBytesError:
+				respondError(w, errBodyTooLarge)
+			default:
+				respondError(w, errReadingBody)
+			}
+			return
+		}
+
+		r.Body = &bufferedBody{rbody}
+		handle.ServeHTTP(w, r)
+	})
+}
+
+// bufferedBody acts as a sentinel for [Handle] that a request body is already
+// buffered, and implements [io.ReadCloser] so [http.Request] can carry it.
+type bufferedBody struct{ bytes.Buffer }
+
+func (bufferedBody) Close() error { return nil }
+
+func respondIfBadMethod(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method != http.MethodPost {
 		w.Header().Add("Allow", http.MethodPost)
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+		return true
 	}
+	return false
+}
 
-	var code int
-	var body any
-	if params, err := readRPCParams[T](r); err == nil {
-		code, body = handler(r, params)
-	} else {
-		code, body = errorHTTPCode(err), err
-	}
-
+func respond(w http.ResponseWriter, code int, body any) {
 	if berr, ok := body.(error); ok {
 		body = struct{ Error string }{berr.Error()}
 	}
-
 	if body == nil {
 		w.WriteHeader(code)
 		return
 	}
-
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(body)
+}
+
+func respondError(w http.ResponseWriter, err error) {
+	respond(w, errorHTTPCode(err), err)
 }
 
 type httpError struct {
@@ -89,29 +150,6 @@ var (
 	errInvalidBodyType = httpError{http.StatusUnsupportedMediaType, "must have Content-Type: application/json"}
 	errInvalidBody     = httpError{http.StatusBadRequest, "unable to decode RPC body"}
 )
-
-func readRPCParams[T any](r *http.Request) (T, error) {
-	var body bytes.Buffer
-	n, err := body.ReadFrom(io.LimitReader(r.Body, MaxRequestBodySize+1))
-	switch {
-	case err != nil:
-		return *new(T), errReadingBody
-	case n == 0:
-		return *new(T), nil
-	case n > MaxRequestBodySize:
-		return *new(T), errBodyTooLarge
-	}
-
-	if r.Header.Get("Content-Type") != "application/json" {
-		return *new(T), errInvalidBodyType
-	}
-
-	var params T
-	if err := json.Unmarshal(body.Bytes(), &params); err != nil {
-		return *new(T), errInvalidBody
-	}
-	return params, err
-}
 
 func errorHTTPCode(err error) int {
 	var herr httpError

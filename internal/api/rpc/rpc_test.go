@@ -20,7 +20,7 @@ func Example() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/rpc/setstatus",
-		rpc.HTTPHandler(func(_ *http.Request, params struct{ Enabled *bool }) (code int, body any) {
+		rpc.Handle(func(_ *http.Request, params struct{ Enabled *bool }) (code int, body any) {
 			if params.Enabled == nil {
 				return http.StatusBadRequest, errors.New(`missing "Enabled" parameter`)
 			}
@@ -28,22 +28,24 @@ func Example() {
 			return http.StatusNoContent, nil
 		}))
 
+	csrf := http.NewCrossOriginProtection()
+	handler := csrf.Handler(
+		rpc.WithLimitedBodyBuffer(1024,
+			mux))
+
 	req := httptest.NewRequest(
-		http.MethodPost, "/rpc/setstatus", strings.NewReader(`{"Enabled": true}`),
-	)
+		http.MethodPost, "/rpc/setstatus", strings.NewReader(`{"Enabled": true}`))
+
 	req.Header.Add("Content-Type", "application/json")
 
 	resp := httptest.NewRecorder()
-	mux.ServeHTTP(resp, req)
+	handler.ServeHTTP(resp, req)
 	fmt.Println(resp.Result().StatusCode)
 	// Output: 204
 }
 
 func TestRPC(t *testing.T) {
-	originalMaxSize := rpc.MaxRequestBodySize
-	rpc.MaxRequestBodySize = 32
-	defer func() { rpc.MaxRequestBodySize = originalMaxSize }()
-
+	const rpcTestBodySizeLimit = 32
 	handler := func(_ *http.Request, _ struct{}) (code int, body any) {
 		return http.StatusNoContent, nil
 	}
@@ -106,8 +108,11 @@ func TestRPC(t *testing.T) {
 			req := httptest.NewRequest(method, "/", strings.NewReader(tc.Body))
 			req.Header = tc.Headers
 
+			// TODO: Separate tests for RPC handler wrapping and body size limits.
+			rh := rpc.WithLimitedBodyBuffer(rpcTestBodySizeLimit, rpc.Handle(handler))
+
 			resp := httptest.NewRecorder()
-			rpc.HTTPHandler(handler).ServeHTTP(resp, req)
+			rh.ServeHTTP(resp, req)
 
 			if resp.Result().StatusCode != tc.WantCode {
 				t.Errorf("wrong status: got %d, want %d", resp.Result().StatusCode, tc.WantCode)
@@ -118,17 +123,11 @@ func TestRPC(t *testing.T) {
 				t.Errorf("wrong headers (-want +got)\n%s", diff)
 			}
 
-			body := string(must(io.ReadAll(resp.Result().Body)))
-			if body != "" {
-				t.Logf("response body: %s", body)
+			var body strings.Builder
+			io.Copy(&body, resp.Result().Body) // Intentionally best-effort.
+			if body.Len() > 0 {
+				t.Logf("response body: %s", body.String())
 			}
 		})
 	}
-}
-
-func must[T any](x T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-	return x
 }
