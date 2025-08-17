@@ -123,17 +123,11 @@ func TestRPC(t *testing.T) {
 				t.Errorf("wrong headers (-want +got)\n%s", diff)
 			}
 
-			body := string(must(io.ReadAll(resp.Result().Body)))
-			if body != "" {
-				t.Logf("response body: %s", body)
+			var body strings.Builder
+			io.Copy(&body, resp.Result().Body) // Intentionally best-effort.
+			if body.Len() > 0 {
+				t.Logf("response body: %s", body.String())
 			}
 		})
 	}
-}
-
-func must[T any](x T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-	return x
 }
