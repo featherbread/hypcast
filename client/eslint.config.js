@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import confusingBrowserGlobals from "confusing-browser-globals";
 
+import { defineConfig } from "eslint/config";
 import js from "@eslint/js";
 import { fixupConfigRules, fixupPluginRules } from "@eslint/compat";
 import { FlatCompat } from "@eslint/eslintrc";
@@ -18,21 +19,17 @@ const compat = new FlatCompat({
   baseDirectory: path.dirname(fileURLToPath(import.meta.url)),
 });
 
-export default tseslint.config(
+export default defineConfig(
   {
     ignores: ["dist/**/*"],
   },
 
   js.configs.recommended,
 
-  // @ts-expect-error
   react.configs.flat.recommended,
   { settings: { react: { version: "detect" } } },
 
-  {
-    plugins: { "react-hooks": reactHooks },
-    rules: reactHooks.configs.recommended.rules,
-  },
+  reactHooks.configs.flat.recommended,
 
   ...tseslint.configs.recommended.map((config) => ({
     files: ["**/*.ts?(x)"],
