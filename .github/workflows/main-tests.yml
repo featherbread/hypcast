@@ -27,7 +27,7 @@ jobs:
     - name: Install Node
       uses: actions/setup-node@v4
       with:
-        node-version: 22.x
+        node-version: 24.x
     - name: Install Packages
       run: cd client && yarn install --frozen-lockfile
     - name: Build Client
