@@ -1,8 +1,8 @@
-# syntax = docker.io/docker/dockerfile:1.20
+# syntax = docker.io/docker/dockerfile:1.21
 
 # The Alpine and Go base images must use the same release of Alpine.
 ARG ALPINE_BASE=docker.io/library/alpine:3.23
-ARG GOLANG_BASE=docker.io/library/golang:1.25-alpine3.23
+ARG GOLANG_BASE=docker.io/library/golang:1.26-alpine3.23
 # The Node.js image does not require any particular OS.
 ARG NODEJS_BASE=docker.io/library/node:24-alpine
 # See https://gstreamer.freedesktop.org/news/.
