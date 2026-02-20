@@ -3,7 +3,7 @@
 # The Alpine and Go base images must use the same release of Alpine.
 ARG ALPINE_BASE=docker.io/library/alpine:3.23
 ARG GOLANG_BASE=docker.io/library/golang:1.26-alpine3.23
-# The Node.js image does not require any particular OS.
+# The Node.js image doesn't require any particular OS.
 ARG NODEJS_BASE=docker.io/library/node:24-alpine
 # See https://gstreamer.freedesktop.org/news/.
 ARG GSTREAMER_VERSION=1.26.10
@@ -37,15 +37,23 @@ RUN \
 # The images are based on Alpine Linux with a custom build of GStreamer, where
 # all C components are built with LLVM.
 #
-# Why a custom GStreamer? Alpine 3.16 and up ship gst-plugins-ugly without the
-# mpeg2dec plugin, which is an absolute requirement for Hypcast. As a bonus, we
-# can reduce the image size by only including plugins we actually need. We
-# still use Alpine's versions of GLib and the underlying codecs.
-#
-# Why LLVM? Alpine does not ship a full set of gcc-based cross toolchains for
+# Why LLVM? Alpine doesn't ship a full set of gcc-based cross toolchains for
 # every build host architecture (e.g. no x86_64 toolchain on aarch64 hosts).
 # Even if it did, the consistency of the LLVM-based setup provides greater
 # confidence that a build executed on one architecture will work on others.
+#
+# Why a custom GStreamer? At first, it was to use the mpeg2dec plugin that
+# Alpine Linux 3.16 stopped distributing with GStreamer. Hypcast has since
+# switched to libav's MPEG-2 decoder due to GStreamer itself deprecating the
+# libmpeg2-based plugin, so the remaining benefit is to reduce the size of the
+# final container image (-276 MB compressed and -642MB uncompressed compared to
+# a version using Alpine's standard packages).
+#
+# Is all of this worth it, given the time and energy footprint of cloning and
+# building GStreamer from scratch compared to downloading binary packages from
+# a CDN? I've tried in some ways to minimize the impact, especially on image
+# rebuilds, but it's far from perfect. A larger but simpler image build isn't
+# out of the question for the future.
 
 
 # The build sysroot layer provides development headers and important support
