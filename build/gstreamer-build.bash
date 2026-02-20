@@ -56,8 +56,8 @@ meson setup \
 	-Dgst-plugins-bad:mpegtsdemux=enabled \
 	-Dugly=enabled \
 	-Dgst-plugins-ugly:a52dec=enabled \
-	-Dgst-plugins-ugly:mpeg2dec=enabled \
 	-Dgst-plugins-ugly:x264=enabled \
+	-Dlibav=enabled \
 	output
 
 info "Starting Meson build"
