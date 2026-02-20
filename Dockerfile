@@ -56,7 +56,7 @@ ARG TARGETARCH TARGETVARIANT
 COPY build/hypcast-buildenv.sh /hypcast-buildenv.sh
 RUN \
   source /hypcast-buildenv.sh && \
-  sysroot_init gcc libc-dev libstdc++-dev glib-dev ffmpeg-dev a52dec-dev libmpeg2-dev opus-dev x264-dev
+  sysroot_init gcc libc-dev libstdc++-dev glib-dev ffmpeg-dev a52dec-dev opus-dev x264-dev
 
 
 # The GStreamer build base layer sets up parts of the GStreamer build that are
@@ -124,7 +124,7 @@ ARG TARGETARCH TARGETVARIANT
 COPY build/hypcast-buildenv.sh /hypcast-buildenv.sh
 RUN \
   source /hypcast-buildenv.sh && \
-  sysroot_init tini libstdc++ glib ffmpeg-libavcodec ffmpeg-libavfilter a52dec libmpeg2 opus x264-libs
+  sysroot_init tini libstdc++ glib ffmpeg-libavcodec ffmpeg-libavfilter a52dec opus x264-libs
 
 
 # The final image simply assembles the results of previous build steps.
