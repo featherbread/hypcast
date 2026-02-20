@@ -263,11 +263,7 @@ var pipelineDescriptionTemplate = template.Must(template.New("").Parse(`
 	! vaapipostproc deinterlace-mode=auto
 	! vaapih264enc rate-control=cbr bitrate=12000 cpb-length=1000 quality-level=1 tune=high-compression
 	{{- else }}
-	{{- if eq .VideoPipeline "lowpower" }}
-	! avdec_mpeg2video lowres=1/2-size
-	{{- else }}
 	! avdec_mpeg2video
-	{{- end }}
 	! deinterlace
 	{{- if eq .VideoPipeline "lowpower" }}
 	{{- template "queue-max-time" 2_500_000_000 }}
