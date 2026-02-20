@@ -16,7 +16,8 @@ sysroot_init () {
 	mkdir -p /sysroot/etc/apk/keys
 	cp /etc/apk/repositories /sysroot/etc/apk/
 	cp /usr/share/apk/keys/*.pub /sysroot/etc/apk/keys/
-	apk add -p /sysroot --arch "$CARCH" --initdb --no-cache --no-scripts "$@"
+	ln -s /etc/apk/cache /sysroot/etc/apk/cache
+	apk add -p /sysroot --arch "$CARCH" --initdb --no-scripts "$@"
 }
 
 export CC=clang

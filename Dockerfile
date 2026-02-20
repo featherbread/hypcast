@@ -63,15 +63,21 @@ FROM --platform=$BUILDPLATFORM $ALPINE_BASE AS build-sysroot
 ARG TARGETARCH TARGETVARIANT
 COPY build/hypcast-buildenv.sh /hypcast-buildenv.sh
 RUN \
+  --mount=type=cache,id=hypcast.apk-cache,target=/etc/apk/cache,sharing=locked \
   source /hypcast-buildenv.sh && \
-  sysroot_init gcc libc-dev libstdc++-dev glib-dev ffmpeg-dev a52dec-dev opus-dev x264-dev
+  sysroot_init \
+    gcc libc-dev libstdc++-dev glib-dev ffmpeg-dev a52dec-dev opus-dev x264-dev
 
 
 # The GStreamer build base layer sets up parts of the GStreamer build that are
 # common to all target platforms. (TODO: Can we not clone GStreamer from Git?
 # Does Cerbero support the level of build customization we're looking for?)
 FROM --platform=$BUILDPLATFORM $ALPINE_BASE AS gst-build-base
-RUN apk add --no-cache bash git clang lld llvm pkgconf meson flex bison glib-dev
+RUN \
+  --mount=type=cache,id=hypcast.apk-cache,target=/etc/apk/cache,sharing=locked \
+  apk add \
+    bash git clang lld llvm pkgconf meson flex bison glib-dev
+
 ARG GSTREAMER_REPO GSTREAMER_VERSION
 RUN git clone -b $GSTREAMER_VERSION --depth 1 $GSTREAMER_REPO /tmp/gstreamer
 WORKDIR /tmp/gstreamer
@@ -94,7 +100,11 @@ RUN \
 # The server build base layer sets up parts of the server build that are common
 # to all target platforms.
 FROM --platform=$BUILDPLATFORM $GOLANG_BASE AS server-build-base
-RUN apk add --no-cache clang lld pkgconf
+RUN \
+  --mount=type=cache,id=hypcast.apk-cache,target=/etc/apk/cache,sharing=locked \
+  apk add \
+    clang lld pkgconf
+
 COPY build/hypcast-buildenv.sh /hypcast-buildenv.sh
 RUN \
   --mount=type=bind,target=/mnt/hypcast \
@@ -131,8 +141,10 @@ FROM --platform=$BUILDPLATFORM $ALPINE_BASE AS target-sysroot
 ARG TARGETARCH TARGETVARIANT
 COPY build/hypcast-buildenv.sh /hypcast-buildenv.sh
 RUN \
+  --mount=type=cache,id=hypcast.apk-cache,target=/etc/apk/cache,sharing=locked \
   source /hypcast-buildenv.sh && \
-  sysroot_init tini libstdc++ glib ffmpeg-libavcodec ffmpeg-libavfilter a52dec opus x264-libs
+  sysroot_init \
+    tini libstdc++ glib ffmpeg-libavcodec ffmpeg-libavfilter a52dec opus x264-libs
 
 
 # The final image simply assembles the results of previous build steps.
