@@ -26,10 +26,10 @@ ENV BUILD_PATH=/dist
 RUN \
   --mount=type=bind,source=client,target=/mnt/client,rw \
   --mount=type=cache,id=hypcast.node_modules,target=/mnt/client/node_modules \
-  --mount=type=cache,id=hypcast.yarn,target=/usr/local/share/.cache/yarn \
+  --mount=type=cache,id=hypcast.npm,target=/root/.npm \
   cd /mnt/client && \
-  yarn install --frozen-lockfile && \
-  yarn build
+  npm clean-install --audit=false && \
+  npm run build
 
 
 # This Dockerfile is designed to produce multi-architecture images without

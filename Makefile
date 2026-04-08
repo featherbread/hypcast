@@ -3,10 +3,10 @@ hypcast-server: go.mod go.sum $(shell find . -name '*.go') client/dist
 
 client/dist: client/node_modules client/tsconfig.json client/tsconfig.node.json client/vite.config.ts $(shell find client/src -type f)
 	rm -rf client/dist
-	cd client && yarn build
+	cd client && npm run build
 
-client/node_modules: client/package.json client/yarn.lock
-	cd client && yarn install
+client/node_modules: client/package.json client/package-lock.json
+	cd client && npm install
 	touch client/node_modules
 
 install: hypcast-server
