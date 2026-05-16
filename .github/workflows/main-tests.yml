@@ -29,10 +29,10 @@ jobs:
       with:
         node-version: 24.x
     - name: Install Packages
-      run: cd client && yarn install --frozen-lockfile
+      run: cd client && npm clean-install
     - name: Build Client
-      run: cd client && yarn build
+      run: cd client && npm run build
     - name: Check for Prettier Style
-      run: cd client && yarn prettier --check src
+      run: cd client && npm exec prettier -- --check src
     - name: Check for ESLint Violations
-      run: cd client && yarn eslint .
+      run: cd client && npm exec eslint -- .
