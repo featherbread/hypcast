@@ -8,24 +8,11 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/gorilla/websocket"
-
 	"github.com/featherbread/hypcast/internal/api/rpc"
 	"github.com/featherbread/hypcast/internal/atsc/tuner"
 )
 
 var csrf = http.NewCrossOriginProtection()
-
-var websocketUpgrader = &websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		// [http.CrossOriginProtection] considers the GET requests used to start
-		// WebSocket connections to be safe, even though the final connection might
-		// not be "safe" in the HTTP sense.
-		r = r.Clone(r.Context())
-		r.Method = http.MethodPost
-		return csrf.Check(r) == nil
-	},
-}
 
 // Handler serves the Hypcast API for a single tuner.
 type Handler struct {

@@ -4,23 +4,23 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"sync"
 
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 
 	"github.com/featherbread/hypcast/internal/atsc/tuner"
 	"github.com/featherbread/hypcast/internal/watch"
 )
 
 type TunerStatusHandler struct {
-	log       *slog.Logger
-	tuner     *tuner.Tuner
-	ctx       context.Context
-	shutdown  context.CancelCauseFunc
-	waitGroup sync.WaitGroup
+	log      *slog.Logger
+	tuner    *tuner.Tuner
+	ctx      context.Context
+	shutdown context.CancelCauseFunc
 
 	socket *websocket.Conn
-	watch  watch.Watch
+
+	statusWatch watch.Watch
 }
 
 func (h *Handler) handleSocketTunerStatus(w http.ResponseWriter, r *http.Request) {
@@ -37,21 +37,24 @@ func (h *Handler) handleSocketTunerStatus(w http.ResponseWriter, r *http.Request
 func (tsh *TunerStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tsh.log.Info("Connecting tuner status socket")
 	defer func() {
-		tsh.waitForCleanup()
+		if tsh.statusWatch != nil {
+			tsh.statusWatch.Wait()
+		}
 		tsh.log.Info("Disconnected tuner status socket", "error", context.Cause(tsh.ctx))
 	}()
 
-	var err error
-	tsh.socket, err = websocketUpgrader.Upgrade(w, r, nil)
-	if err != nil {
+	if socket, err := websocket.Accept(w, r, nil); err == nil {
+		tsh.socket = socket
+	} else {
 		return
 	}
-	defer tsh.socket.Close()
 
-	tsh.waitGroup.Go(tsh.drainClient)
+	defer tsh.socket.Close(websocket.StatusGoingAway, "server is shutting down")
 
-	tsh.watch = tsh.tuner.WatchStatus(tsh.sendNewTunerStatus)
-	defer tsh.watch.Cancel()
+	tsh.ctx = tsh.socket.CloseRead(tsh.ctx)
+
+	tsh.statusWatch = tsh.tuner.WatchStatus(tsh.sendNewTunerStatus)
+	defer tsh.statusWatch.Cancel()
 
 	<-tsh.ctx.Done()
 }
@@ -59,7 +62,7 @@ func (tsh *TunerStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 func (tsh *TunerStatusHandler) sendNewTunerStatus(s tuner.Status) {
 	tsh.logTunerStatus(s)
 	msg := tsh.mapTunerStatusToMessage(s)
-	if err := tsh.socket.WriteJSON(msg); err != nil {
+	if err := wsjson.Write(tsh.ctx, tsh.socket, msg); err != nil {
 		tsh.shutdown(err)
 	}
 }
@@ -73,25 +76,6 @@ func (tsh *TunerStatusHandler) logTunerStatus(s tuner.Status) {
 		attrs = append(attrs, slog.String("error", s.Error.Error()))
 	}
 	tsh.log.LogAttrs(tsh.ctx, slog.LevelInfo, "Sending tuner status", attrs...)
-}
-
-func (tsh *TunerStatusHandler) drainClient() {
-	// Per https://pkg.go.dev/github.com/gorilla/websocket#hdr-Control_Messages,
-	// we have to drain incoming messages ourselves even if we don't care about
-	// them.
-	for {
-		if _, _, err := tsh.socket.NextReader(); err != nil {
-			tsh.shutdown(err)
-			return
-		}
-	}
-}
-
-func (tsh *TunerStatusHandler) waitForCleanup() {
-	if tsh.watch != nil {
-		tsh.watch.Wait()
-	}
-	tsh.waitGroup.Wait()
 }
 
 type tunerStatusMsg struct {

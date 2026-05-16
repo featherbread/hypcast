@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"sync"
 
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 	"github.com/pion/webrtc/v4"
 
 	"github.com/featherbread/hypcast/internal/atsc/tuner"
@@ -44,15 +44,16 @@ func init() {
 }
 
 type WebRTCHandler struct {
-	log       *slog.Logger
-	tuner     *tuner.Tuner
-	ctx       context.Context
-	shutdown  context.CancelCauseFunc
-	waitGroup sync.WaitGroup
+	log      *slog.Logger
+	tuner    *tuner.Tuner
+	ctx      context.Context
+	shutdown context.CancelCauseFunc
 
 	socket  *websocket.Conn
 	rtcPeer *webrtc.PeerConnection
-	watch   watch.Watch
+
+	trackWatch   watch.Watch
+	clientReader sync.WaitGroup
 }
 
 func (h *Handler) handleSocketWebRTCPeer(w http.ResponseWriter, r *http.Request) {
@@ -69,45 +70,44 @@ func (h *Handler) handleSocketWebRTCPeer(w http.ResponseWriter, r *http.Request)
 func (wh *WebRTCHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wh.log.Info("Connecting WebRTC socket")
 	defer func() {
-		wh.waitForCleanup()
+		if wh.trackWatch != nil {
+			wh.trackWatch.Wait()
+		}
+		wh.clientReader.Wait()
 		wh.log.Info("Disconnected WebRTC socket", "error", context.Cause(wh.ctx))
 	}()
 
-	var err error
-	wh.socket, err = websocketUpgrader.Upgrade(w, r, nil)
-	if err != nil {
+	if socket, err := websocket.Accept(w, r, nil); err == nil {
+		wh.socket = socket
+	} else {
 		return
 	}
-	defer wh.socket.Close()
 
-	wh.rtcPeer, err = webrtcAPI.NewPeerConnection(webrtc.Configuration{})
-	if err != nil {
+	defer wh.socket.Close(websocket.StatusGoingAway, "server is shutting down")
+
+	if rtcPeer, err := webrtcAPI.NewPeerConnection(webrtc.Configuration{}); err == nil {
+		wh.rtcPeer = rtcPeer
+	} else {
 		return
 	}
+
 	defer wh.rtcPeer.Close()
 
-	wh.waitGroup.Go(wh.handleClientSessionAnswers)
+	wh.clientReader.Go(wh.readClientSessionDescriptions)
 
-	wh.watch = wh.tuner.WatchTracks(wh.handleTrackUpdate)
-	defer wh.watch.Cancel()
+	wh.trackWatch = wh.tuner.WatchTracks(wh.handleTrackUpdate)
+	defer wh.trackWatch.Cancel()
 
 	<-wh.ctx.Done()
 }
 
-func (wh *WebRTCHandler) handleClientSessionAnswers() {
+func (wh *WebRTCHandler) readClientSessionDescriptions() {
 	for {
-		_, r, err := wh.socket.NextReader()
-		if err != nil {
-			wh.shutdown(err)
-			return
-		}
-
 		var msg struct{ SDP webrtc.SessionDescription }
-		if err := json.NewDecoder(r).Decode(&msg); err != nil {
+		if err := wsjson.Read(wh.ctx, wh.socket, &msg); err != nil {
 			wh.shutdown(err)
 			return
 		}
-
 		if err := wh.rtcPeer.SetRemoteDescription(msg.SDP); err != nil {
 			wh.shutdown(err)
 			return
@@ -128,8 +128,7 @@ func (wh *WebRTCHandler) handleTrackUpdate(ts tuner.Tracks) {
 }
 
 func (wh *WebRTCHandler) logTracks(ts tuner.Tracks) {
-	var zero tuner.Tracks
-	if ts == zero {
+	if ts == (tuner.Tracks{}) {
 		wh.log.Info("Clearing WebRTC tracks")
 	} else {
 		wh.log.Info("Sending WebRTC tracks")
@@ -168,7 +167,7 @@ func (wh *WebRTCHandler) renegotiateSession() error {
 
 	<-gatherComplete
 	msg := struct{ SDP webrtc.SessionDescription }{*wh.rtcPeer.LocalDescription()}
-	return wh.socket.WriteJSON(msg)
+	return wsjson.Write(wh.ctx, wh.socket, msg)
 }
 
 func (wh *WebRTCHandler) removeTracks() error {
@@ -212,11 +211,4 @@ func (wh *WebRTCHandler) addTracksWithNewTransceivers(ts tuner.Tracks) error {
 
 func (wh *WebRTCHandler) hasTransceivers() bool {
 	return len(wh.rtcPeer.GetTransceivers()) > 0
-}
-
-func (wh *WebRTCHandler) waitForCleanup() {
-	if wh.watch != nil {
-		wh.watch.Wait()
-	}
-	wh.waitGroup.Wait()
 }
