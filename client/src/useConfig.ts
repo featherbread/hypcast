@@ -4,10 +4,10 @@ export default function useConfig<T>(name: string): undefined | T | Error {
   const [result, setResult] = React.useState<undefined | T | Error>();
 
   React.useEffect(() => {
-    setResult(undefined);
     startFetch();
 
     async function startFetch() {
+      setResult(undefined);
       try {
         setResult(await fetchConfigWithCache(name));
       } catch (e: unknown) {
