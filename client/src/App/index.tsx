@@ -50,7 +50,7 @@ function VideoPlayer({ stream }: { stream: undefined | MediaStream }) {
     }
   }, [stream]);
 
-  /* eslint-disable jsx-a11y/media-has-caption */
+  // eslint-disable jsx-a11y/media-has-caption
   // Lack of closed caption support is a longstanding deficiency in Hypcast.
   // After experimenting with several approaches in GStreamer, I'm ashamed to
   // say that I have yet to identify one that works reliably and consistently.
