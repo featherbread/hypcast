@@ -34,5 +34,5 @@ jobs:
       run: cd client && npm run build
     - name: Check for Prettier Style
       run: cd client && npm exec prettier -- --check src
-    - name: Check for ESLint Violations
-      run: cd client && npm exec eslint -- .
+    - name: Check for Lint Violations
+      run: cd client && npm exec oxlint -- .
