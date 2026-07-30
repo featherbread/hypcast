@@ -6,7 +6,7 @@ export type ConnectionState =
 
 type Message = { SDP: RTCSessionDescriptionInit };
 
-/* eslint-disable @typescript-eslint/no-unsafe-declaration-merging */
+// eslint-disable @typescript-eslint/no-unsafe-declaration-merging
 // TODO: I need to figure out what's up with this one.
 
 declare interface Backend {
