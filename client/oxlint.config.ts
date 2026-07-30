@@ -27,28 +27,15 @@ export default defineConfig({
     "react/no-unknown-property": "error",
     "no-restricted-globals": ["error", ...confusingBrowserGlobals],
     "react/rules-of-hooks": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "prefer-rest-params": "error",
+    "prefer-spread": "error",
+    "no-array-constructor": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-unnecessary-type-constraint": "error",
   },
-  overrides: [
-    {
-      files: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
-      rules: {
-        "no-redeclare": "off",
-        "no-var": "error",
-        "prefer-const": "error",
-        "prefer-rest-params": "error",
-        "prefer-spread": "error",
-      },
-    },
-    {
-      files: ["**/*.ts?(x)"],
-      rules: {
-        "no-array-constructor": "error",
-        "typescript/ban-ts-comment": "error",
-        "typescript/no-empty-object-type": "error",
-        "typescript/no-explicit-any": "error",
-        "typescript/no-require-imports": "error",
-        "typescript/no-unnecessary-type-constraint": "error",
-      },
-    },
-  ],
 });
