@@ -9,7 +9,7 @@ export default function useConfig<T>(name: string): undefined | T | Error {
     async function startFetch() {
       setResult(undefined);
       try {
-        setResult(await fetchConfigWithCache(name));
+        setResult((await fetchConfigWithCache(name)) as T);
       } catch (e: unknown) {
         if (e instanceof Error) {
           setResult(e);
@@ -23,9 +23,9 @@ export default function useConfig<T>(name: string): undefined | T | Error {
   return result;
 }
 
-const FETCH_CACHE = new Map<string, Promise<any>>(); // eslint-disable-line @typescript-eslint/no-explicit-any
+const FETCH_CACHE = new Map<string, Promise<unknown>>();
 
-function fetchConfigWithCache(name: string) {
+function fetchConfigWithCache(name: string): Promise<unknown> {
   const cachedPromise = FETCH_CACHE.get(name);
   if (cachedPromise !== undefined) {
     return cachedPromise;
