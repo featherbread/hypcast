@@ -1,19 +1,16 @@
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "react",
-    "jsx-a11y"
-  ],
-  "categories": {
-    "correctness": "off"
+import { defineConfig } from "oxlint";
+
+export default defineConfig({
+  $schema: "./node_modules/oxlint/configuration_schema.json",
+  plugins: ["react", "jsx-a11y"],
+  categories: {
+    correctness: "off",
   },
-  "env": {
-    "builtin": true
+  env: {
+    builtin: true,
   },
-  "ignorePatterns": [
-    "dist/**/*"
-  ],
-  "rules": {
+  ignorePatterns: ["dist/**/*"],
+  rules: {
     "constructor-super": "error",
     "for-direction": "error",
     "getter-return": "error",
@@ -105,16 +102,16 @@
     "jsx-a11y/interactive-supports-focus": [
       "error",
       {
-        "tabbable": [
+        tabbable: [
           "button",
           "checkbox",
           "link",
           "searchbox",
           "spinbutton",
           "switch",
-          "textbox"
-        ]
-      }
+          "textbox",
+        ],
+      },
     ],
     "jsx-a11y/label-has-associated-control": "error",
     "jsx-a11y/media-has-caption": "error",
@@ -125,19 +122,14 @@
     "jsx-a11y/no-interactive-element-to-noninteractive-role": [
       "error",
       {
-        "tr": [
-          "none",
-          "presentation"
-        ],
-        "canvas": [
-          "img"
-        ]
-      }
+        tr: ["none", "presentation"],
+        canvas: ["img"],
+      },
     ],
     "jsx-a11y/no-noninteractive-element-interactions": [
       "error",
       {
-        "handlers": [
+        handlers: [
           "onClick",
           "onError",
           "onLoad",
@@ -145,98 +137,72 @@
           "onMouseUp",
           "onKeyPress",
           "onKeyDown",
-          "onKeyUp"
-        ],
-        "alert": [
           "onKeyUp",
-          "onKeyDown",
-          "onKeyPress"
         ],
-        "body": [
-          "onError",
-          "onLoad"
-        ],
-        "dialog": [
-          "onKeyUp",
-          "onKeyDown",
-          "onKeyPress"
-        ],
-        "iframe": [
-          "onError",
-          "onLoad"
-        ],
-        "img": [
-          "onError",
-          "onLoad"
-        ]
-      }
+        alert: ["onKeyUp", "onKeyDown", "onKeyPress"],
+        body: ["onError", "onLoad"],
+        dialog: ["onKeyUp", "onKeyDown", "onKeyPress"],
+        iframe: ["onError", "onLoad"],
+        img: ["onError", "onLoad"],
+      },
     ],
     "jsx-a11y/no-noninteractive-element-to-interactive-role": [
       "error",
       {
-        "ul": [
+        ul: [
           "listbox",
           "menu",
           "menubar",
           "radiogroup",
           "tablist",
           "tree",
-          "treegrid"
+          "treegrid",
         ],
-        "ol": [
+        ol: [
           "listbox",
           "menu",
           "menubar",
           "radiogroup",
           "tablist",
           "tree",
-          "treegrid"
+          "treegrid",
         ],
-        "li": [
+        li: [
           "menuitem",
           "menuitemradio",
           "menuitemcheckbox",
           "option",
           "row",
           "tab",
-          "treeitem"
+          "treeitem",
         ],
-        "table": [
-          "grid"
-        ],
-        "td": [
-          "gridcell"
-        ],
-        "fieldset": [
-          "radiogroup",
-          "presentation"
-        ]
-      }
+        table: ["grid"],
+        td: ["gridcell"],
+        fieldset: ["radiogroup", "presentation"],
+      },
     ],
     "jsx-a11y/no-noninteractive-tabindex": [
       "error",
       {
-        "tags": [],
-        "roles": [
-          "tabpanel"
-        ],
-        "allowExpressionValues": true
-      }
+        tags: [],
+        roles: ["tabpanel"],
+        allowExpressionValues: true,
+      },
     ],
     "jsx-a11y/no-redundant-roles": "error",
     "jsx-a11y/no-static-element-interactions": [
       "error",
       {
-        "allowExpressionValues": true,
-        "handlers": [
+        allowExpressionValues: true,
+        handlers: [
           "onClick",
           "onMouseDown",
           "onMouseUp",
           "onKeyPress",
           "onKeyDown",
-          "onKeyUp"
-        ]
-      }
+          "onKeyUp",
+        ],
+      },
     ],
     "jsx-a11y/role-has-required-aria-props": "error",
     "jsx-a11y/role-supports-aria-props": "error",
@@ -301,20 +267,15 @@
       "statusbar",
       "stop",
       "toolbar",
-      "top"
+      "top",
     ],
     "react/rules-of-hooks": "error",
-    "react/exhaustive-deps": "warn"
+    "react/exhaustive-deps": "warn",
   },
-  "overrides": [
+  overrides: [
     {
-      "files": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.mts",
-        "**/*.cts"
-      ],
-      "rules": {
+      files: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      rules: {
         "constructor-super": "off",
         "getter-return": "off",
         "no-class-assign": "off",
@@ -334,14 +295,12 @@
         "no-with": "off",
         "prefer-const": "error",
         "prefer-rest-params": "error",
-        "prefer-spread": "error"
-      }
+        "prefer-spread": "error",
+      },
     },
     {
-      "files": [
-        "**/*.ts?(x)"
-      ],
-      "rules": {
+      files: ["**/*.ts?(x)"],
+      rules: {
         "no-array-constructor": "error",
         "no-unused-expressions": "error",
         "typescript/ban-ts-comment": "error",
@@ -360,11 +319,9 @@
         "typescript/no-wrapper-object-types": "error",
         "typescript/prefer-as-const": "error",
         "typescript/prefer-namespace-keyword": "error",
-        "typescript/triple-slash-reference": "error"
+        "typescript/triple-slash-reference": "error",
       },
-      "plugins": [
-        "typescript"
-      ]
-    }
-  ]
-}
+      plugins: ["typescript"],
+    },
+  ],
+});
