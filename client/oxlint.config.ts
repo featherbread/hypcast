@@ -4,7 +4,7 @@ import confusingBrowserGlobals from "confusing-browser-globals";
 
 export default defineConfig({
   $schema: "./node_modules/oxlint/configuration_schema.json",
-  plugins: ["react", "jsx-a11y"],
+  plugins: ["eslint", "jsx-a11y", "react", "typescript"],
   categories: {
     correctness: "error",
   },
@@ -49,7 +49,6 @@ export default defineConfig({
         "typescript/no-require-imports": "error",
         "typescript/no-unnecessary-type-constraint": "error",
       },
-      plugins: ["typescript"],
     },
   ],
 });
