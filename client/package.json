@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "devDependencies": {
+    "@types/confusing-browser-globals": "^1.0.3",
     "@types/events": "^3.0.3",
     "@types/node": "^26.1.1",
     "@types/react": "^19.0.2",

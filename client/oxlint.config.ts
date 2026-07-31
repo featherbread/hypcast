@@ -19,7 +19,7 @@ export default defineConfig({
     "no-prototype-builtins": "error",
     "no-redeclare": "error",
     "no-regex-spaces": "error",
-    "no-restricted-globals": ["error", ...confusingBrowserGlobals],
+    "no-restricted-globals": ["error", { globals: confusingBrowserGlobals }],
     "no-unexpected-multiline": "error",
     "no-var": "error",
     "prefer-const": "error",
