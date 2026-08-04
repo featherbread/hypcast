@@ -9,6 +9,12 @@ export default function useConfig<T>(name: string): undefined | T | Error {
     async function startFetch() {
       setResult(undefined);
       try {
+        // TODO: This is legitimately an unsafe type assertion, which trusts the
+        // user of this hook to ensure total alignment between the server and
+        // client. This isn't a serious issue in the current version of Hypcast,
+        // where clients won't reconnect to the server without a page refresh,
+        // but could become one if I ever do auto-reconnection.
+        // eslint-disable-next-line typescript/no-unsafe-type-assertion
         setResult((await fetchConfigWithCache(name)) as T);
       } catch (e: unknown) {
         if (e instanceof Error) {

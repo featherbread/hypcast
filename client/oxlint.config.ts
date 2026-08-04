@@ -39,5 +39,6 @@ export default defineConfig({
     "typescript/no-explicit-any": "error",
     "typescript/no-require-imports": "error",
     "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/no-unsafe-type-assertion": "error",
   },
 });
