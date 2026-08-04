@@ -4,7 +4,7 @@ export default function useConfig<T>(name: string): undefined | T | Error {
   const [result, setResult] = React.useState<undefined | T | Error>();
 
   React.useEffect(() => {
-    startFetch();
+    startFetch().catch(() => {});
 
     async function startFetch() {
       setResult(undefined);
@@ -14,6 +14,8 @@ export default function useConfig<T>(name: string): undefined | T | Error {
         if (e instanceof Error) {
           setResult(e);
         } else {
+          // We're just going to hope the error can be stringified.
+          // eslint-disable-next-line typescript/restrict-template-expressions
           setResult(Error(`${e}`));
         }
       }

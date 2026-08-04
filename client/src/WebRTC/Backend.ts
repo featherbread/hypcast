@@ -71,12 +71,12 @@ class Backend extends EventEmitter {
   private handleSocketMessage(evt: MessageEvent) {
     const message: Message = JSON.parse(evt.data);
     console.log("Received WebRTC offer", message);
-    this.handleRTCOffer(message.SDP);
+    this.handleRTCOffer(message.SDP).catch(() => {});
   }
 
   private async handleRTCOffer(sdp: RTCSessionDescriptionInit) {
     console.log("Received remote description", sdp);
-    this.pc.setRemoteDescription(sdp);
+    this.pc.setRemoteDescription(sdp).catch(() => {});
 
     const answer = await this.pc.createAnswer();
     console.log("Created local description", answer);
@@ -99,7 +99,7 @@ class Backend extends EventEmitter {
     console.log("RTC socket error", evt);
     this._connectionState = {
       Status: "Error",
-      Error: new Error(evt.toString()),
+      Error: new Error("failed to connect RTC socket"),
     };
     this.emit("connectionchange", this._connectionState);
   }

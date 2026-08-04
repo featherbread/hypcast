@@ -8,6 +8,9 @@ export default defineConfig({
   env: {
     builtin: true,
   },
+  options: {
+    typeAware: true,
+  },
   categories: {
     correctness: "error",
   },
