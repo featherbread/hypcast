@@ -17,13 +17,7 @@ export default function useConfig<T>(name: string): undefined | T | Error {
         // eslint-disable-next-line typescript/no-unsafe-type-assertion
         setResult((await fetchConfigWithCache(name)) as T);
       } catch (e: unknown) {
-        if (e instanceof Error) {
-          setResult(e);
-        } else {
-          // We're just going to hope the error can be stringified.
-          // eslint-disable-next-line typescript/restrict-template-expressions
-          setResult(Error(`${e}`));
-        }
+        setResult(new Error(`Failed to fetch ${name} config`, { cause: e }));
       }
     }
   }, [name]);
