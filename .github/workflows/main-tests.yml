@@ -30,9 +30,9 @@ jobs:
         node-version: 24.x
     - name: Install Packages
       run: cd client && npm clean-install
+    - name: Check Semantics
+      run: cd client && npm run check
+    - name: Check Style
+      run: cd client && npm exec prettier -- --check src
     - name: Build Client
       run: cd client && npm run build
-    - name: Check for Prettier Style
-      run: cd client && npm exec prettier -- --check src
-    - name: Check for Lint Violations
-      run: cd client && npm exec oxlint -- .

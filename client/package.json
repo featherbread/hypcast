@@ -23,9 +23,9 @@
   },
   "scripts": {
     "dev": "vite",
+    "check": "tsc && oxlint --type-aware",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "lint": "oxlint"
+    "preview": "vite preview"
   },
   "prettier": {
     "trailingComma": "all"

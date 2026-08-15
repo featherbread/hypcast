@@ -8,9 +8,12 @@ export default defineConfig({
   env: {
     builtin: true,
   },
-  options: {
-    typeAware: true,
-  },
+  // TODO: Oxlint's LSP leaks zombie processes when type-aware linting is enabled.
+  // Yes, I learned this the hard way. It's a miracle I recovered without rebooting.
+  // I'd like to re-enable this as soon as someone (me?) fixes the issue.
+  // options: {
+  //   typeAware: true,
+  // },
   categories: {
     correctness: "error",
   },
