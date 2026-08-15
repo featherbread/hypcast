@@ -1,5 +1,3 @@
-import React from "react";
-
 import useConfig from "../useConfig";
 
 export default function ChannelSelector({

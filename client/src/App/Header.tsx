@@ -1,5 +1,3 @@
-import React from "react";
-
 import { useWebRTC, State as WebRTCState } from "../WebRTC";
 import { useTunerStatus, Status as TunerStatus } from "../TunerStatus";
 import rpc from "../rpc";
