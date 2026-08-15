@@ -27,7 +27,7 @@ function PowerButton() {
   const handleClick = () => {
     if (poweredOn) {
       rpc("stop").catch(console.error);
-    } else if (channelNames instanceof Array) {
+    } else if (Array.isArray(channelNames)) {
       rpc("tune", { ChannelName: channelNames[0] }).catch(console.error);
     }
   };

@@ -9,7 +9,7 @@ export default function ChannelSelector({
 }) {
   const channelNames = useConfig<string[]>("channels");
 
-  return channelNames instanceof Array ? (
+  return Array.isArray(channelNames) ? (
     <aside className="ChannelSelector">
       {channelNames.map((ch) => (
         <Channel
