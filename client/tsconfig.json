@@ -4,8 +4,8 @@
   "compilerOptions": {
     "noEmit": true,
 
-    "target": "es2020",
-    "lib": ["es2020", "dom", "dom.iterable"],
+    "target": "es2022",
+    "lib": ["es2022", "dom", "dom.iterable"],
     "jsx": "react-jsx",
     "useDefineForClassFields": true,
 
