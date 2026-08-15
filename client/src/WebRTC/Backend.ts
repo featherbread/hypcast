@@ -6,9 +6,9 @@ export type ConnectionState =
 
 type Message = { SDP: RTCSessionDescriptionInit };
 
-// eslint-disable @typescript-eslint/no-unsafe-declaration-merging
-// TODO: I need to figure out what's up with this one.
-
+// This declaration merging is unsafe, but intentional to represent the
+// intended EventEmitter API to consumers.
+// eslint-disable-next-line typescript/no-unsafe-declaration-merging
 declare interface Backend {
   emit(event: "connectionchange", state: ConnectionState): boolean;
   on(
