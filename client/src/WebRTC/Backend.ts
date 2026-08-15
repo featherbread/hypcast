@@ -120,7 +120,7 @@ class Backend extends EventEmitter {
     }
 
     const stream = evt.streams[0];
-    if (this.#mediaStream && this.#mediaStream.id === stream.id) {
+    if (this.#mediaStream?.id === stream.id) {
       return;
     }
 
@@ -135,7 +135,7 @@ class Backend extends EventEmitter {
   #handleMediaStreamRemoveTrack(stream: MediaStream) {
     console.log("Track removed from stream", stream);
 
-    if (!this.#mediaStream || this.#mediaStream.id !== stream.id) {
+    if (this.#mediaStream?.id !== stream.id) {
       return;
     }
 
