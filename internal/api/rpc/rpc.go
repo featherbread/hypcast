@@ -152,8 +152,7 @@ var (
 )
 
 func errorHTTPCode(err error) int {
-	var herr httpError
-	if errors.As(err, &herr) {
+	if herr, ok := errors.AsType[httpError](err); ok {
 		return herr.HTTPCode
 	}
 	return http.StatusInternalServerError
