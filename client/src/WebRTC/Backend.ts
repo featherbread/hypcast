@@ -8,7 +8,7 @@ type Message = { SDP: RTCSessionDescriptionInit };
 
 // This declaration merging is unsafe, but intentional to represent the
 // intended EventEmitter API to consumers.
-// eslint-disable-next-line typescript/no-unsafe-declaration-merging
+// eslint-disable-next-line eslint/no-redeclare typescript/no-unsafe-declaration-merging
 declare interface Backend {
   emit(event: "connectionchange", state: ConnectionState): boolean;
   on(
