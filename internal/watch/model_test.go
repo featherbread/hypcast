@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 //go:embed model.pml
@@ -40,9 +43,8 @@ var modelFile string
 // [Spin]: https://spinroot.com/
 func TestModel(t *testing.T) {
 	for _, cmd := range []string{"spin", "cc"} {
-		if _, err := exec.LookPath(cmd); err != nil {
-			t.Fatalf("cannot find %v on this system", cmd)
-		}
+		_, err := exec.LookPath(cmd)
+		require.NoError(t, err, "%v must be installed to run model tests", cmd)
 	}
 
 	t.Chdir(t.ArtifactDir())
@@ -50,32 +52,29 @@ func TestModel(t *testing.T) {
 	spin := exec.Command("spin", "-a", "/dev/stdin")
 	spin.Stdin = strings.NewReader(modelFile)
 	spin.Stdout, spin.Stderr = os.Stdout, os.Stderr
-	if err := spin.Run(); err != nil {
-		t.Fatalf("failed to run spin: %v", err)
-	}
+	err := spin.Run()
+	require.NoError(t, err, "spin should run without errors")
 
 	cc := exec.Command("cc", "-o", "pan", "pan.c")
 	cc.Stdout, cc.Stderr = os.Stdout, os.Stderr
-	if err := cc.Run(); err != nil {
-		t.Fatalf("failed to compile pan.c: %v", err)
-	}
+	err = cc.Run()
+	require.NoError(t, err, "pan.c should compile without errors")
 
 	pan := exec.Command(filepath.Join(t.ArtifactDir(), "pan"))
 	pan.Stdout, pan.Stderr = os.Stdout, os.Stderr
-	if err := pan.Run(); err != nil {
-		t.Fatalf("failed to run pan: %v", err)
-	}
+	err = pan.Run()
+	require.NoError(t, err, "pan should run without errors")
 
 	matches, _ := filepath.Glob("*.trail") // Error-free for well-formed patterns.
 	if len(matches) == 0 {
 		return
 	}
 
-	t.Errorf("found %v; run go test -v to see trail output", matches)
 	trail := exec.Command("spin", "-t", "-p", "-k", matches[0], "/dev/stdin")
 	trail.Stdin = strings.NewReader(modelFile)
 	trail.Stdout, trail.Stderr = os.Stdout, os.Stderr
-	if err := trail.Run(); err != nil {
-		t.Fatalf("failed to print trail output: %v", err)
+	err = trail.Run()
+	if assert.NoError(t, err, "spin should print the trail without errors") {
+		assert.Fail(t, "Model shouldn't produce a *.trail file")
 	}
 }

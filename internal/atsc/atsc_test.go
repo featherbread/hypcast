@@ -4,7 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -20,15 +21,15 @@ WORLD:189000000:8VSB:97:100:6`
 
 func TestParseChannelsConf(t *testing.T) {
 	testCases := []struct {
-		name    string
-		input   string
-		want    []Channel
-		wantErr bool
+		Description string
+		Input       string
+		Want        []Channel
+		WantErr     bool
 	}{
 		{
-			name:  "valid channels.conf",
-			input: validChannelsConf,
-			want: []Channel{
+			Description: "valid channels.conf",
+			Input:       validChannelsConf,
+			Want: []Channel{
 				{"KCTS-HD", 189_000_000, Modulation8VSB, 49, 52, 3},
 				{"KIDS", 189_000_000, Modulation8VSB, 65, 68, 4},
 				{"CREATE", 189_000_000, Modulation8VSB, 81, 84, 5},
@@ -37,68 +38,64 @@ func TestParseChannelsConf(t *testing.T) {
 		},
 
 		{
-			name:  "w_scan2 nonstandard 8VSB output",
-			input: validChannelsConfNonstandard8VSB,
-			want: []Channel{
+			Description: "w_scan2 nonstandard 8VSB output",
+			Input:       validChannelsConfNonstandard8VSB,
+			Want: []Channel{
 				{"KCTS-HD", 189_000_000, Modulation8VSB, 49, 52, 3},
 			},
 		},
 
 		{
-			name:  "QAM64 modulation",
-			input: validChannelsConfQAM64,
-			want: []Channel{
+			Description: "QAM64 modulation",
+			Input:       validChannelsConfQAM64,
+			Want: []Channel{
 				{"Test QAM 64", 255_000_000, ModulationQAM64, 42, 43, 5},
 			},
 		},
 
 		{
-			name:  "QAM256 modulation",
-			input: validChannelsConfQAM256,
-			want: []Channel{
+			Description: "QAM256 modulation",
+			Input:       validChannelsConfQAM256,
+			Want: []Channel{
 				{"WLFI", 255_000_000, ModulationQAM256, 66, 68, 4},
 			},
 		},
 
 		{
-			name:    "wrong number of fields",
-			input:   "KCTS-HD:189000000:8VSB:3",
-			wantErr: true,
+			Description: "wrong number of fields",
+			Input:       "KCTS-HD:189000000:8VSB:3",
+			WantErr:     true,
 		},
 
 		{
-			name:    "invalid frequency",
-			input:   "KCTS-HD:189.0123456:8VSB:49:52:3",
-			wantErr: true,
+			Description: "invalid frequency",
+			Input:       "KCTS-HD:189.0123456:8VSB:49:52:3",
+			WantErr:     true,
 		},
 
 		{
-			name:    "invalid modulation",
-			input:   "KCTS-HD:189000000:42VSB:49:52:3",
-			wantErr: true,
+			Description: "invalid modulation",
+			Input:       "KCTS-HD:189000000:42VSB:49:52:3",
+			WantErr:     true,
 		},
 
 		{
-			name:    "invalid PID",
-			input:   "KCTS-HD:189000000:8VSB:49:52:?",
-			wantErr: true,
+			Description: "invalid PID",
+			Input:       "KCTS-HD:189000000:8VSB:49:52:?",
+			WantErr:     true,
 		},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := ParseChannelsConf(strings.NewReader(tc.input))
-			if err != nil {
-				if !tc.wantErr {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				t.Logf("error: %v", err)
-				return
+		t.Run(tc.Description, func(t *testing.T) {
+			got, err := ParseChannelsConf(strings.NewReader(tc.Input))
+			if tc.WantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
-
-			diff := cmp.Diff(tc.want, got)
-			if diff != "" {
-				t.Errorf("unexpected result (-want +got):\n%s", diff)
+			if err == nil {
+				assert.Equal(t, tc.Want, got)
 			}
 		})
 	}
@@ -111,21 +108,14 @@ func FuzzParseChannelsConf(f *testing.F) {
 	f.Add(validChannelsConfQAM256)
 
 	f.Fuzz(func(t *testing.T, inputStringConf string) {
-		parsedChannels, err := ParseChannelsConf(strings.NewReader(inputStringConf))
+		parsed, err := ParseChannelsConf(strings.NewReader(inputStringConf))
 		if err != nil {
 			t.SkipNow()
 		}
-
-		encodedChannels := formatChannelsConf(t, parsedChannels)
-		parsedChannels2, err := ParseChannelsConf(strings.NewReader(encodedChannels))
-		if err != nil {
-			t.Fatalf("error re-parsing encoded channel list: %v", err)
-		}
-
-		diff := cmp.Diff(parsedChannels, parsedChannels2)
-		if diff != "" {
-			t.Errorf("could not round-trip channels.conf (-want +got):\n%s", diff)
-		}
+		reencoded := formatChannelsConf(t, parsed)
+		reparsed, err := ParseChannelsConf(strings.NewReader(reencoded))
+		require.NoError(t, err, "Encoded channel list should re-parse")
+		assert.Equal(t, parsed, reparsed, "channels.conf should round-trip without changes")
 	})
 }
 
