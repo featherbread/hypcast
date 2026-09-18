@@ -9,8 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/featherbread/hypcast/internal/api/rpc"
 )
@@ -63,12 +62,14 @@ func TestRPC(t *testing.T) {
 		{
 			Description: "empty body",
 			WantCode:    http.StatusNoContent,
+			WantHeaders: http.Header{},
 		},
 		{
 			Description: "body with maximum length",
 			Body:        `{"Message":"123456789012345678"}`,
 			Headers:     jsonHeaders,
 			WantCode:    http.StatusNoContent,
+			WantHeaders: http.Header{},
 		},
 		{
 			Description: "body too long by 1 character",
@@ -114,19 +115,13 @@ func TestRPC(t *testing.T) {
 			resp := httptest.NewRecorder()
 			rh.ServeHTTP(resp, req)
 
-			if resp.Result().StatusCode != tc.WantCode {
-				t.Errorf("wrong status: got %d, want %d", resp.Result().StatusCode, tc.WantCode)
-			}
-
-			diff := cmp.Diff(tc.WantHeaders, resp.Result().Header, cmpopts.EquateEmpty())
-			if diff != "" {
-				t.Errorf("wrong headers (-want +got)\n%s", diff)
-			}
+			assert.Equal(t, tc.WantCode, resp.Result().StatusCode, "HTTP code should match")
+			assert.Equal(t, tc.WantHeaders, resp.Result().Header, "HTTP headers should match")
 
 			var body strings.Builder
 			io.Copy(&body, resp.Result().Body) // Intentionally best-effort.
 			if body.Len() > 0 {
-				t.Logf("response body: %s", body.String())
+				t.Logf("Response: %s", body.String())
 			}
 		})
 	}

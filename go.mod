@@ -4,7 +4,6 @@ go 1.26.0
 
 require (
 	github.com/coder/websocket v1.8.15
-	github.com/google/go-cmp v0.7.0
 	github.com/pion/webrtc/v4 v4.2.18
 	github.com/stretchr/testify v1.11.1
 )
