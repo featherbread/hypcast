@@ -17,7 +17,7 @@ package rpc
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"net/http"
 )
@@ -25,16 +25,16 @@ import (
 // Handle wraps an RPC handler into an [http.Handler] that follows the RPC
 // framework conventions noted in the package documentation.
 //
-// When the client provides a JSON parameters value in the request body,
-// the RPC framework decodes it following standard [json.Unmarshal] rules.
-// It buffers the request body in memory before decoding, which may not be
-// memory-efficent for some use cases. [WithLimitedBodyBuffer] may wrap one or
-// more RPC handlers to limit the sizes of allowed request bodies.
+// When the client provides a JSON parameters value in the request body, the
+// RPC framework decodes it following [json.Unmarshal] rules. It buffers the
+// request body in memory before decoding, which may not be memory-efficent for
+// some use cases. [WithLimitedBodyBuffer] may wrap one or more RPC handlers to
+// limit the sizes of allowed request bodies.
 //
 // When the RPC handler returns a Go error as the response body, the framework
 // encodes it as a JSON object with an "Error" key containing the error
 // message. Otherwise, when the body is non-nil, the framework encodes it to
-// JSON following standard [json.Marshal] rules.
+// JSON following [json.Marshal] and [json.Deterministic] rules.
 func Handle[T any](h func(r *http.Request, params T) (code int, body any)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		blocked := respondIfBadMethod(w, r)
@@ -130,7 +130,7 @@ func respond(w http.ResponseWriter, code int, body any) {
 	}
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(body)
+	json.MarshalWrite(w, body, json.Deterministic(true))
 }
 
 func respondError(w http.ResponseWriter, err error) {
