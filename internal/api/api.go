@@ -2,7 +2,7 @@
 package api
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -51,7 +51,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleConfigChannels(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(slices.Collect(h.tuner.ChannelNames()))
+	json.MarshalWrite(w, slices.Collect(h.tuner.ChannelNames()))
 }
 
 func (h *Handler) rpcStop(r *http.Request, _ struct{}) (code int, body any) {
